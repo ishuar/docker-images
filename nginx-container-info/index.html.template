@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nginx Debug Container</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 900px;
+            width: 100%;
+            padding: 40px;
+        }
+        h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+            text-align: center;
+        }
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        .info-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            border-radius: 10px;
+            color: white;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .info-card h3 {
+            font-size: 0.85em;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+            opacity: 0.9;
+        }
+        .info-card p {
+            font-size: 1.2em;
+            font-weight: bold;
+            word-break: break-all;
+        }
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+                border-radius: 15px;
+            }
+            h1 {
+                font-size: 1.8em;
+            }
+            .subtitle {
+                font-size: 1em;
+            }
+            .info-grid {
+                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+                gap: 10px;
+            }
+            .info-card {
+                padding: 15px;
+            }
+            .info-card h3 {
+                font-size: 0.75em;
+            }
+            .info-card p {
+                font-size: 1em;
+            }
+        }
+        @media (max-width: 480px) {
+            body {
+                padding: 10px;
+            }
+            .container {
+                padding: 15px;
+            }
+            h1 {
+                font-size: 1.5em;
+            }
+            .info-grid {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+        }
+        .endpoints {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+        .endpoints h2 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+        }
+        .endpoint {
+            background: white;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: transform 0.2s;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .endpoint:hover {
+            transform: translateX(5px);
+        }
+        .endpoint-url {
+            font-family: 'Courier New', monospace;
+            color: #667eea;
+            font-weight: bold;
+            font-size: 0.95em;
+        }
+        .endpoint-desc {
+            color: #666;
+            font-size: 0.85em;
+        }
+        .test-button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.85em;
+            transition: background 0.3s;
+            white-space: nowrap;
+        }
+        .test-button:hover {
+            background: #764ba2;
+        }
+        /* Responsive adjustments for endpoints */
+        @media (max-width: 768px) {
+            .endpoints {
+                padding: 15px;
+            }
+            .endpoints h2 {
+                font-size: 1.2em;
+            }
+            .endpoint {
+                padding: 12px;
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .endpoint-actions {
+                width: 100%;
+                justify-content: flex-end;
+            }
+        }
+        .test-button:hover {
+            background: #764ba2;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            color: #666;
+            font-size: 0.9em;
+        }
+        .status-badge {
+            display: inline-block;
+            background: #10b981;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            margin-bottom: 20px;
+        }
+        .live-info {
+            margin-top: 20px;
+            padding: 15px;
+            background: #e0e7ff;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+        #client-info {
+            color: #4338ca;
+        }
+        .metrics-container {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .metric-card {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .metric-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #667eea;
+            margin: 10px 0;
+        }
+        .metric-label {
+            font-size: 0.85em;
+            color: #666;
+            text-transform: uppercase;
+        }
+        /* Responsive adjustments for metrics */
+        @media (max-width: 768px) {
+            .metrics-container {
+                padding: 15px;
+            }
+            .metrics-grid {
+                grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+                gap: 10px;
+            }
+            .metric-value {
+                font-size: 1.5em;
+            }
+            .metric-label {
+                font-size: 0.75em;
+            }
+        }
+        @media (max-width: 480px) {
+            .metrics-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        .copy-btn {
+            background: #10b981;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85em;
+            margin-left: 10px;
+            transition: background 0.3s;
+        }
+        .copy-btn:hover {
+            background: #059669;
+        }
+        .copy-btn.copied {
+            background: #6366f1;
+        }
+        .endpoint-actions {
+            display: flex;
+            gap: 8px;
+        }
+        .refresh-indicator {
+            display: inline-block;
+            color: #10b981;
+            font-size: 0.85em;
+            margin-left: 10px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .refresh-indicator.active {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Nginx Debug Container</h1>
+        <p class="subtitle">Demo & Debugging Made Easy</p>
+        <div style="text-align: center;">
+            <span class="status-badge">✓ Running</span>
+        </div>
+
+        <div class="info-grid">
+            <div class="info-card">
+                <h3>🏷️ Pod Name</h3>
+                <p>${POD_NAME}</p>
+            </div>
+            <div class="info-card">
+                <h3>🌐 Pod IP</h3>
+                <p>${POD_IP}</p>
+            </div>
+            <div class="info-card">
+                <h3> User</h3>
+                <p>${USER}</p>
+            </div>
+            <div class="info-card">
+                <h3>🏷️ Image Version</h3>
+                <p>${IMAGE_VERSION}</p>
+            </div>
+        </div>
+
+        <div class="live-info">
+            <strong>Your Client Info:</strong>
+            <div id="client-info">Loading...</div>
+        </div>
+
+        <div class="endpoints">
+            <h2>🔧 Debug Endpoints</h2>
+
+            <div class="endpoint">
+                <div>
+                    <div class="endpoint-url">GET /</div>
+                    <div class="endpoint-desc">This page - main dashboard</div>
+                </div>
+            </div>
+
+            <div class="endpoint">
+                <div>
+                    <div class="endpoint-url">GET /health</div>
+                    <div class="endpoint-desc">Health check endpoint</div>
+                </div>
+                <div class="endpoint-actions">
+                    <button class="copy-btn" onclick="copyCurl('/health')">Copy</button>
+                    <button class="test-button" onclick="testEndpoint('/health')">Test</button>
+                </div>
+            </div>
+
+            <div class="endpoint">
+                <div>
+                    <div class="endpoint-url">GET /info</div>
+                    <div class="endpoint-desc">Detailed server information (JSON)</div>
+                </div>
+                <div class="endpoint-actions">
+                    <button class="copy-btn" onclick="copyCurl('/info')">Copy</button>
+                    <button class="test-button" onclick="testEndpoint('/info')">Test</button>
+                </div>
+            </div>
+
+            <div class="endpoint">
+                <div>
+                    <div class="endpoint-url">GET /headers</div>
+                    <div class="endpoint-desc">Echo all request headers (JSON)</div>
+                </div>
+                <div class="endpoint-actions">
+                    <button class="copy-btn" onclick="copyCurl('/headers')">Copy</button>
+                    <button class="test-button" onclick="testEndpoint('/headers')">Test</button>
+                </div>
+            </div>
+
+            <div class="endpoint">
+                <div>
+                    <div class="endpoint-url">GET /plain</div>
+                    <div class="endpoint-desc">Plain text server info (simple format)</div>
+                </div>
+                <div class="endpoint-actions">
+                    <button class="copy-btn" onclick="copyCurl('/plain')">Copy</button>
+                    <button class="test-button" onclick="testEndpoint('/plain')">Test</button>
+                </div>
+            </div>
+
+            <div class="endpoint">
+                <div>
+                    <div class="endpoint-url">GET /nginx-status</div>
+                    <div class="endpoint-desc">Nginx metrics and statistics</div>
+                </div>
+                <div class="endpoint-actions">
+                    <button class="copy-btn" onclick="copyCurl('/nginx-status')">Copy</button>
+                    <button class="test-button" onclick="testEndpoint('/nginx-status')">Test</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="metrics-container">
+            <h2>📊 Live Nginx Metrics <span class="refresh-indicator" id="refresh-indicator">● Updated</span></h2>
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-label">Active Connections</div>
+                    <div class="metric-value" id="metric-connections">-</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Total Accepts</div>
+                    <div class="metric-value" id="metric-accepts">-</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Total Handled</div>
+                    <div class="metric-value" id="metric-handled">-</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Total Requests</div>
+                    <div class="metric-value" id="metric-requests">-</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Reading</div>
+                    <div class="metric-value" id="metric-reading">-</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Writing</div>
+                    <div class="metric-value" id="metric-writing">-</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>Built for debugging and demonstration purposes</p>
+            <p>Made with ❤️ by <a href="https://github.com/ishuar/" style="color: #667eea;">ishuar</a></p>
+        </div>
+    </div>
+
+    <script>
+        // Load client info
+        fetch('/info')
+            .then(response => response.json())
+            .then(data => {
+                const clientInfo = document.getElementById('client-info');
+                clientInfo.innerHTML = `
+                    IP: ${data.client_ip || 'N/A'}<br>
+                    User-Agent: ${data.user_agent || 'N/A'}
+                `;
+            })
+            .catch(err => {
+                document.getElementById('client-info').innerHTML = 'Unable to fetch client info';
+            });
+
+        // Function to parse nginx status
+        function parseNginxStatus(text) {
+            const lines = text.split('\n');
+            const activeMatch = lines[0].match(/Active connections:\s+(\d+)/);
+            const serverMatch = lines[2].match(/\s*(\d+)\s+(\d+)\s+(\d+)/);
+            const statusMatch = lines[3].match(/Reading:\s+(\d+)\s+Writing:\s+(\d+)\s+Waiting:\s+(\d+)/);
+
+            return {
+                active: activeMatch ? activeMatch[1] : '-',
+                accepts: serverMatch ? serverMatch[1] : '-',
+                handled: serverMatch ? serverMatch[2] : '-',
+                requests: serverMatch ? serverMatch[3] : '-',
+                reading: statusMatch ? statusMatch[1] : '-',
+                writing: statusMatch ? statusMatch[2] : '-'
+            };
+        }
+
+        // Function to update metrics
+        function updateMetrics() {
+            fetch('/nginx-status')
+                .then(response => response.text())
+                .then(text => {
+                    const metrics = parseNginxStatus(text);
+                    document.getElementById('metric-connections').textContent = metrics.active;
+                    document.getElementById('metric-accepts').textContent = metrics.accepts;
+                    document.getElementById('metric-handled').textContent = metrics.handled;
+                    document.getElementById('metric-requests').textContent = metrics.requests;
+                    document.getElementById('metric-reading').textContent = metrics.reading;
+                    document.getElementById('metric-writing').textContent = metrics.writing;
+
+                    // Show refresh indicator
+                    const indicator = document.getElementById('refresh-indicator');
+                    indicator.classList.add('active');
+                    setTimeout(() => indicator.classList.remove('active'), 1000);
+                })
+                .catch(err => {
+                    console.error('Error fetching metrics:', err);
+                });
+        }
+
+        // Initial metrics load
+        updateMetrics();
+
+        // Auto-refresh metrics every 5 seconds
+        setInterval(updateMetrics, 5000);
+
+        // Test endpoint function
+        function testEndpoint(endpoint) {
+            fetch(endpoint)
+                .then(response => response.text())
+                .then(data => {
+                    alert(`Response from ${endpoint}:\n\n${data}`);
+                })
+                .catch(err => {
+                    alert(`Error testing ${endpoint}: ${err.message}`);
+                });
+        }
+
+        // Copy curl command function
+        function copyCurl(endpoint) {
+            const hostname = window.location.hostname;
+            const port = window.location.port ? ':' + window.location.port : '';
+            const curlCommand = `curl http://${hostname}${port}${endpoint}`;
+
+            navigator.clipboard.writeText(curlCommand).then(() => {
+                // Find the button that was clicked and show feedback
+                const buttons = document.querySelectorAll('.copy-btn');
+                buttons.forEach(btn => {
+                    if (btn.onclick.toString().includes(endpoint)) {
+                        const originalText = btn.textContent;
+                        btn.textContent = 'Copied!';
+                        btn.classList.add('copied');
+                        setTimeout(() => {
+                            btn.textContent = originalText;
+                            btn.classList.remove('copied');
+                        }, 2000);
+                    }
+                });
+            }).catch(err => {
+                alert('Failed to copy: ' + err);
+            });
+        }
+    </script>
+</body>
+</html>

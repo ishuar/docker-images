@@ -1,0 +1,65 @@
+# Custom log format for debugging
+log_format debug_format '$remote_addr - $remote_user [$time_local] '
+                        '"$request" $status $body_bytes_sent '
+                        '"$http_referer" "$http_user_agent" '
+                        'pod_name=${POD_NAME} pod_ip=${POD_IP} '
+                        'request_time=$request_time upstream_response_time=$upstream_response_time';
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name $hostname;
+
+    # Use custom log format
+    access_log /var/log/nginx/access.log debug_format;
+
+    # Security headers
+    add_header X-Frame-Options "DENY" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Content-Security-Policy "default-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';" always;
+
+    # Add custom headers to all responses (pod information)
+    add_header X-Pod-Name "${POD_NAME}" always;
+    add_header X-Pod-IP "${POD_IP}" always;
+    add_header X-Served-By "$hostname" always;
+
+    # Main page - HTML dashboard
+    location / {
+        root /usr/share/nginx/html;
+        index index.html;
+        try_files $uri $uri/ =404;
+    }
+
+    # Health check endpoint
+    location /health {
+        add_header Content-Type "application/json" always;
+        return 200 '{"status":"healthy","pod":"${POD_NAME}","ip":"${POD_IP}","timestamp":"$time_iso8601"}';
+    }
+
+    # Info endpoint - returns detailed information
+    location /info {
+        add_header Content-Type "application/json" always;
+        return 200 '{"pod_name":"${POD_NAME}","pod_ip":"${POD_IP}","hostname":"$hostname","client_ip":"$remote_addr","user_agent":"$http_user_agent","request_time":"$time_iso8601","server_version":"$nginx_version"}';
+    }
+
+    # Headers echo endpoint - returns all request headers
+    location /headers {
+        default_type application/json;
+        return 200 '{"host":"$http_host","user_agent":"$http_user_agent","accept":"$http_accept","accept_encoding":"$http_accept_encoding","accept_language":"$http_accept_language","connection":"$http_connection","upgrade_insecure_requests":"$http_upgrade_insecure_requests","x_forwarded_for":"$http_x_forwarded_for","x_forwarded_proto":"$http_x_forwarded_proto","x_real_ip":"$http_x_real_ip","remote_addr":"$remote_addr","remote_port":"$remote_port"}';
+    }
+
+    # Plain text endpoint (for simple curl tests)
+    location /plain {
+        add_header Content-Type "text/plain" always;
+        return 200 "Pod: ${POD_NAME}\nIP: ${POD_IP}\nHostname: $hostname\nClient IP: $remote_addr\n";
+    }
+
+    # Stub status for nginx monitoring
+    location /nginx-status {
+        stub_status on;
+        access_log off;
+    }
+}
+
